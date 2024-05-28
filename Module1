@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract VotingSystem {
+    struct Proposal {
+        uint id;
+        string description;
+        address creator;
+        uint voteCount;
+        bool active;
+        uint endTime;
+    }
+
+    struct Voter {
+        bool hasVoted;
+        uint proposalId;
+    }
+
+    mapping(uint => Proposal) public proposals;
+    mapping(address => Voter) public voters;
+    uint public totalProposals;
+
+    event ProposalCreated(uint indexed id, string description, address indexed creator, uint endTime);
+    event VoteCasted(uint indexed proposalId, address indexed voter);
+    event ProposalEnded(uint indexed id, string description, uint voteCount);
+
+    constructor() {
+        totalProposals = 0;
+    }
+
+    function createProposal(string memory _description, uint _duration) public {
+        totalProposals++;
+        proposals[totalProposals] = Proposal(totalProposals, _description, msg.sender, 0, true, block.timestamp + _duration);
+        emit ProposalCreated(totalProposals, _description, msg.sender, block.timestamp + _duration);
+    }
+
+    function vote(uint _proposalId) public {
+        require(_proposalId > 0 && _proposalId <= totalProposals, "Invalid proposal ID");
+        Proposal storage proposal = proposals[_proposalId];
+        require(proposal.active, "Proposal is not active");
+        require(block.timestamp < proposal.endTime, "Proposal voting period has ended");
+
+        Voter storage sender = voters[msg.sender];
+        require(!sender.hasVoted, "You have already voted");
+        
+        sender.hasVoted = true;
+        sender.proposalId = _proposalId;
+        proposal.voteCount++;
+
+        emit VoteCasted(_proposalId, msg.sender);
+    }
+
+
+    function getProposal(uint _proposalId) public view returns (string memory, address, uint, bool, uint) {
+        require(_proposalId > 0 && _proposalId <= totalProposals, "Invalid proposal ID");
+        Proposal storage proposal = proposals[_proposalId];
+        return (proposal.description, proposal.creator, proposal.voteCount, proposal.active, proposal.endTime);
+    }
+}
