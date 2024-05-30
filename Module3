@@ -1,25 +1,39 @@
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract MyToken is ERC20 {
-    uint256 private _totalTransactions;
+contract JAKEc0in is ERC20 {
+    address private owner;
 
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+    constructor(string memory name, string memory symbol, uint256 initialSupply) ERC20(name, symbol) {
+        _mint(msg.sender, initialSupply);
+        owner = msg.sender;
+    }
 
-    function mint(address to, uint256 amount) public {
-        _mint(to, amount);
-        _totalTransactions++;
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only JAKE can access this function");
+        _;
+    }
+
+    function mint(address account, uint256 amount) public onlyOwner {
+        _mint(account, amount);
     }
 
     function burn(uint256 amount) public {
         _burn(msg.sender, amount);
-        _totalTransactions++;
     }
 
-    function getTotalTransactions() public view returns (uint256) {
-        return _totalTransactions;
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        _transfer(msg.sender, recipient, amount);
+        return true;
+    }
+
+    function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
+        require(recipient != address(0), "ERC20: transfer to the zero address");
+        _transfer(sender, recipient, amount);
+        _approve(sender, msg.sender, allowance(sender, msg.sender) - amount);
+        return true;
     }
 }
