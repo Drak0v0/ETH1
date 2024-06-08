@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+/*
+1. Minting new tokens: The platform should be able to create new tokens and distribute them to participants as rewards. Only the owner can mint tokens.
+2. Transferring tokens: Participants should be able to transfer their tokens to others.
+3. Redeeming tokens: Participants should be able to redeem their tokens for rewards in the EcoReward store.
+4. Checking token balance: Participants should be able to check their token balance at any time.
+5. Burning tokens: Anyone should be able to burn tokens, that they own, that are no longer needed.
+*/
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract EcoReward is ERC20, Ownable {
+
+    mapping(uint256 => uint256) public rewardPrices;
+    mapping(uint256 => string) public rewardItems;
+    mapping(address => mapping(uint256 => uint256)) private _participantInventory;
+
+    event TokensMinted(address indexed to, uint256 amount);
+    event TokensTransferred(address indexed from, address indexed to, uint256 amount);
+    event RewardRedeemed(address indexed participant, uint256 rewardId, uint256 amount);
+    event TokensBurned(address indexed from, uint256 amount);
+
+    constructor() ERC20("Green Token", "GT") Ownable(msg.sender) {
+        rewardPrices[1] = 50;
+        rewardPrices[2] = 30;
+        rewardPrices[3] = 70;
+        rewardPrices[4] = 60;
+        
+        rewardItems[1] = "Eco-Friendly Water Bottle";
+        rewardItems[2] = "Reusable Shopping Bag";
+        rewardItems[3] = "Tree Planting Kit";
+        rewardItems[4] = "Public Transport Pass";
+    }
+
+    function mintTokens(address to, uint256 amount) public onlyOwner {
+        _mint(to, amount);
+        emit TokensMinted(to, amount);
+    }
+
+    function transferTokens(address to, uint256 amount) public {
+        require(balanceOf(msg.sender) >= amount, "Transfer Failed: You don't have enough balance.");
+        _transfer(msg.sender, to, amount);
+        emit TokensTransferred(msg.sender, to, amount);
+    }
+
+    function listRewardItems() external view returns (string memory) {
+        return string(
+            abi.encodePacked(
+                "Available Rewards: {1} ", rewardItems[1], " (", uintToString(rewardPrices[1]), " GT) {2} ",
+                rewardItems[2], " (", uintToString(rewardPrices[2]), " GT) {3} ",
+                rewardItems[3], " (", uintToString(rewardPrices[3]), " GT) {4} ",
+                rewardItems[4], " (", uintToString(rewardPrices[4]), " GT)"
+            )
+        );
+    }
+
+    function redeemReward(uint256 rewardId) public {
+        require(rewardPrices[rewardId] > 0, "Reward is not available.");
+        require(balanceOf(msg.sender) >= rewardPrices[rewardId], "Redeem Failed: Insufficient balance.");
+        _transfer(msg.sender, owner(), rewardPrices[rewardId]);
+        _participantInventory[msg.sender][rewardId] += 1;
+        emit RewardRedeemed(msg.sender, rewardId, rewardPrices[rewardId]);
+    }
+
+    function burnTokens(uint256 amount) public {
+        require(balanceOf(msg.sender) >= amount, "Burn Failed: You don't have enough balance.");
+        _burn(msg.sender, amount);
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    function checkBalance() external view returns (uint256) {
+        return balanceOf(msg.sender);
+    }
+
+    function checkRedeemedRewards() external view returns (string memory) {
+        return string(
+            abi.encodePacked(
+                rewardItems[1], " (", uintToString(_participantInventory[msg.sender][1]), 
+                ") ", rewardItems[2], " (", uintToString(_participantInventory[msg.sender][2]), 
+                ") ", rewardItems[3], " (", uintToString(_participantInventory[msg.sender][3]), 
+                ") ", rewardItems[4], " (", uintToString(_participantInventory[msg.sender][4]), ")"
+            )
+        );
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 0;
+    }
+
+    function uintToString(uint256 v) private pure returns (string memory) {
+        if (v == 0) {
+            return "0";
+        }
+        uint256 maxLength = 78;
+        bytes memory reversed = new bytes(maxLength);
+        uint256 i = 0;
+        while (v != 0) {
+            uint256 remainder = v % 10;
+            v = v / 10;
+            reversed[i++] = bytes1(uint8(48 + remainder));
+        }
+        bytes memory s = new bytes(i); 
+        for (uint256 j = 0; j < i; j++) {
+            s[j] = reversed[i - j - 1];
+        }
+        return string(s);
+    }
+}
